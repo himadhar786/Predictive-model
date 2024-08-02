@@ -1,35 +1,37 @@
 import pandas as pd
-import random
 
-# Seed for reproducibility
-random.seed(42)
+# Load the dataset
+data = pd.read_csv('data/linkedin-jobs-canada.csv')
 
-# Sample data
-skills_list = [
-    "Python, Machine Learning", "Java, Spring", "JavaScript, React", "SQL, Data Analysis",
-    "C++, Embedded Systems", "R, Statistics", "Ruby, Rails", "HTML, CSS, JavaScript",
-    "AWS, DevOps", "TensorFlow, Deep Learning"
-]
+# Handle missing values
+data.fillna('', inplace=True)
 
-job_titles = [
-    "Data Scientist", "Software Engineer", "Web Developer", "Data Analyst",
-    "Systems Engineer", "Statistician", "Backend Developer", "Frontend Developer",
-    "DevOps Engineer", "AI Researcher"
-]
+# Refined feature engineering: create a binary target variable 'register'
+def registration_likelihood(row):
+    keywords = ['Data', 'Engineer', 'Scientist', 'Developer', 'Manager']
+    if any(keyword in row['title'] for keyword in keywords):
+        return 1
+    if row['company'] in ['Company A', 'Company B'] and row['location'] in ['Toronto, ON', 'Vancouver, BC']:
+        return 1
+    return 0
 
-# Generate synthetic data
-data = {
-    "skills": [random.choice(skills_list) for _ in range(100)],
-    "experience": [random.randint(1, 15) for _ in range(100)],  # years of experience
-    "job_title": [random.choice(job_titles) for _ in range(100)],
-    "social_media_activity": [random.randint(0, 100) for _ in range(100)],  # activity score out of 100
-    "joined_picsume": [random.randint(0, 1) for _ in range(100)]  # 1 if joined, 0 otherwise
-}
+data['register'] = data.apply(registration_likelihood, axis=1)
 
-# Create DataFrame
-df = pd.DataFrame(data)
+# Check the distribution of the target variable
+print(data['register'].value_counts())
 
-# Save to CSV
-df.to_csv('data/candidate_data.csv', index=False)
+# Balance the dataset
+majority_class = data[data['register'] == 1]
+minority_class = data[data['register'] == 0]
 
-print(df.head())
+# Downsample the majority class
+majority_downsampled = majority_class.sample(len(minority_class), random_state=42)
+
+# Combine the downsampled majority class with the minority class
+balanced_data = pd.concat([majority_downsampled, minority_class])
+
+# Save the balanced dataset
+balanced_data.to_csv('data/linkedin-jobs-canada-balanced.csv', index=False)
+
+# Check the distribution of the target variable in the balanced dataset
+print(balanced_data['register'].value_counts())
